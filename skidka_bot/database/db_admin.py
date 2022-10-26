@@ -1,7 +1,23 @@
 import sqlite3
 
+
 def sql_start():
     global base, cur
-    base = sqlite3.connect(r'database\users.db')
+    base = sqlite3.connect('database/skidka.db')
     cur = base.cursor()
-    cur.execute("CREATE TABLE IF NOT EXISTS users(id AUTOINCREMENT, user_id INTEGER PRIMARY KEY, user_name TEXT")
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS users(user_id PRIMARY KEY, user_name TEXT)"
+    )
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS packages(id PRIMARY KEY, package_url TEXT, old_price FLOAT, "
+        "new_price FLOAT, amount INT)"
+    )
+    base.commit()
+
+
+def check_user_in_db(user_id):
+    cur.execute(f"SELECT * FROM users WHERE user_id={user_id}")
+    return cur.fetchone()
+
+def add_package_url():
+    cur.execute()
