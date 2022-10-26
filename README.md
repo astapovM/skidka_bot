@@ -1,0 +1,1 @@
+# skidka_bot
