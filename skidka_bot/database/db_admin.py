@@ -6,7 +6,7 @@ def sql_start():
     base = sqlite3.connect('database/skidka.db')
     cur = base.cursor()
     cur.execute(
-        "CREATE TABLE IF NOT EXISTS users(user_id PRIMARY KEY, user_name TEXT)"
+        "CREATE TABLE IF NOT EXISTS users(user_id PRIMARY KEY, user_name TEXT, connect_date )"
     )
     cur.execute(
         "CREATE TABLE IF NOT EXISTS packages(id PRIMARY KEY, package_url TEXT, old_price FLOAT, "
