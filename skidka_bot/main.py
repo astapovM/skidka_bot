@@ -49,30 +49,35 @@ async def send_start_url(callback: CallbackQuery):
 async def url_input_state(message:types.Message, state:FSMContext):
     async with state.proxy() as data:
         data['url'] = message.text
-        print(message.text.split("/")[0])
         if message.text.split("/")[0] != 'https:':
             await message.answer("Введите ссылку в верном формате : (https://www.wildberries.ru/catalog/number/detail.aspx")
             await states.set_states.Url_input.insert_url.set()
         else:
             base = sqlite3.connect('database/skidka.db')
             cur = base.cursor()
-            sql = """INSERT INTO packages (id, package_url) VALUES(?,?)"""
+            sql = """INSERT INTO packages (user_id, package_url) VALUES(?,?)"""
             user_id = message.chat.id
             params = (user_id, data['url'])
             cur.execute(sql, params)
             base.commit()
             await state.finish()
+            await message.answer("Товар добавлен",reply_markup=inline_start_kb)
 
 
 
 @dp.callback_query_handler(text='package_button')
 async def send_start_package(callback: CallbackQuery):
-    await callback.answer(
-        text="Список товаров пуст. "
-             "Кстати ты пидор 😎",
-        show_alert=True
+    if db_admin.check_packages(callback.message.chat.id) != None:
+        await callback.message.answer("Вот твой список товаров, пидор 😎")
+        package_list = db_admin.check_packages(callback.message.chat.id)
+        for package in package_list:
+            await callback.message.answer(package[0])
 
-    )
+
+
+    else:
+        await callback.message.answer("Ты еще не заполнял список товарами, пидор!")
+
 
 
 @dp.callback_query_handler(text='help_button')
