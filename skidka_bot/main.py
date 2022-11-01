@@ -7,7 +7,6 @@ from aiogram.types import CallbackQuery
 from aiogram.utils import executor
 import sqlite3
 
-import database.db_admin
 import states.set_states
 from buttons.keyboard_button import inline_start_kb
 from config import TOKEN
@@ -18,6 +17,7 @@ bot = Bot(token=TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
 db_admin.sql_start()
 date = datetime.now().date()
+admin = 293427068
 
 
 # Регистрируем пользователя при старте бота.
@@ -30,7 +30,7 @@ async def start_command(message: types.Message):
                              )
         client = message.from_user.id
         name = message.from_user.first_name
-
+        # Регистрация пользователя в БД
         base = sqlite3.connect('database/skidka.db')
         cur = base.cursor()
         sql = """INSERT INTO users (user_id, user_name, connect_date) VALUES(?,?,?)"""
@@ -62,41 +62,62 @@ async def url_input_state(message: types.Message, state: FSMContext):
         else:
             base = sqlite3.connect('database/skidka.db')
             cur = base.cursor()
-            sql = """INSERT INTO packages (user_id, package_url, package_name) VALUES(?,?,?)"""
+            sql = """INSERT INTO packages (user_id, package_url, package_name, brand_name, old_price) VALUES(?,?,?,?,?)"""
             user_id = message.chat.id
-            name_for_db = parser_wb_page.page_parce(message.text)
-            params = (user_id, data['url'], name_for_db)
-            cur.execute(sql, params)
-            base.commit()
-            await state.finish()
-            await message.answer("Товар добавлен", reply_markup=inline_start_kb)
+            item_info = parser_wb_page.page_parce(message.text)
+            params = (user_id, data['url'], item_info[0], item_info[1], item_info[2])
+            try:
+                cur.execute(sql, params)
+                base.commit()
+                await state.finish()
+                await message.answer("Товар добавлен", reply_markup=inline_start_kb)
+            except sqlite3.IntegrityError:
+                await message.answer("Такой товар уже есть в вашем списке", reply_markup=inline_start_kb)
+                await state.finish()
+
+
+
 
 
 # Ловим ответ на нажатие инлайн кнопки "Посмотреть мои товары "
 @dp.callback_query_handler(text='package_button')
 async def send_start_package(callback: CallbackQuery):
     if db_admin.check_packages(callback.message.chat.id) != None:
-        await callback.message.answer("Вот твой список товаров, пидор 😎")
+
         package_list = db_admin.check_packages(callback.message.chat.id)
         for package in package_list:
-            await callback.message.answer(f'{package[0]} ---------- {package[1]}')
+            await callback.message.answer(
+                f'{package[0]} ※ ·❆· ※ <b>{package[1]}</b> ※ ·❆· ※ <b>Бренд: {package[2]}</b> ※ ·❆· ※ <b>Цена: {package[3]}</b>',
+                parse_mode='html')
 
-        await callback.answer()
+        await callback.message.answer("Ваш список товаров 😎", reply_markup=inline_start_kb)
 
 
 
 
     else:
-        await callback.message.answer("Ты еще не заполнял список товарами, пидор!")
+        await callback.message.answer("Ваш список товаров пуст")
 
 
 # Ловим ответ на нажатие инлайн кнопки "Помощь"
 @dp.callback_query_handler(text='help_button')
 async def sent_start_help(callback: CallbackQuery):
     await callback.answer(
-        text="Чтобы воспользоваться функционалом бота введи  /start или нажми кнопку из меню, пидор",
+        text="Чтобы воспользоваться функционалом бота введите  /start или нажми кнопку из меню",
         show_alert=True
     )
+
+
+@dp.message_handler(commands=['spam'])
+async def spam(message):
+    if message.from_user.id == admin:
+        await bot.send_message(5670943281, 'Привет')
+
+
+@dp.message_handler()
+async def command_not_found(message: types.Message):
+    await message.delete()
+    await message.answer(f"Команда {message.text} не найдена")
 
 
 if __name__ == '__main__':
