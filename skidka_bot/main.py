@@ -11,7 +11,7 @@ import states.set_states
 from buttons.keyboard_button import inline_start_kb
 from config import TOKEN
 from database import db_admin
-from database.db_admin import check_user_in_db
+from database.db_admin import check_user_in_db, add_new_user, add_item_info
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
@@ -28,15 +28,8 @@ async def start_command(message: types.Message):
                              f"Оставляй ссылку на товар - а я сообщу тебе,когда на него появится скидка",
                              reply_markup=inline_start_kb,
                              )
-        client = message.from_user.id
-        name = message.from_user.first_name
-        # Регистрация пользователя в БД
-        base = sqlite3.connect('database/skidka.db')
-        cur = base.cursor()
-        sql = """INSERT INTO users (user_id, user_name, connect_date) VALUES(?,?,?)"""
-        params = (client, name, date)
-        cur.execute(sql, params)
-        base.commit()
+        params = (message.from_user.id, message.from_user.first_name, date)
+        add_new_user(params)
     else:
         await message.answer(f"{message.from_user.full_name}, калайсын есь жи", reply_markup=inline_start_kb)
 
@@ -60,15 +53,10 @@ async def url_input_state(message: types.Message, state: FSMContext):
 
 
         else:
-            base = sqlite3.connect('database/skidka.db')
-            cur = base.cursor()
-            sql = """INSERT INTO packages (user_id, package_url, package_name, brand_name, old_price) VALUES(?,?,?,?,?)"""
-            user_id = message.chat.id
             item_info = parser_wb_page.page_parce(message.text)
-            params = (user_id, data['url'], item_info[0], item_info[1], item_info[2])
+            params = (message.chat.id, data['url'], item_info[0], item_info[1], item_info[2])
             try:
-                cur.execute(sql, params)
-                base.commit()
+                add_item_info(params)
                 await state.finish()
                 await message.answer("Товар добавлен", reply_markup=inline_start_kb)
             except sqlite3.IntegrityError:
