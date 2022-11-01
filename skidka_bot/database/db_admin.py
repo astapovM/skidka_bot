@@ -15,6 +15,17 @@ def sql_start():
     base.commit()
 
 
+def add_new_user(params):
+    cur.execute("INSERT INTO users (user_id, user_name, connect_date) VALUES(?,?,?)", params)
+    base.commit()
+
+
+def add_item_info(params):
+    cur.execute("INSERT INTO packages (user_id, package_url, package_name, brand_name, old_price) VALUES(?,?,?,?,?)",
+                params)
+    base.commit()
+
+
 def check_user_in_db(user_id):
     cur.execute(f"SELECT * FROM users WHERE user_id={user_id}")
     return cur.fetchone()
@@ -23,4 +34,3 @@ def check_user_in_db(user_id):
 def check_packages(user_id):
     cur.execute(f"SELECT package_url, package_name, brand_name, old_price FROM packages WHERE user_id ={user_id}")
     return cur.fetchall()
-
