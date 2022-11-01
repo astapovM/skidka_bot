@@ -9,8 +9,8 @@ def sql_start():
         "CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id , user_name TEXT, connect_date, FOREIGN KEY (id) REFERENCES packages (user_id) )"
     )
     cur.execute(
-        "CREATE TABLE IF NOT EXISTS packages(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id, package_url, package_name, old_price FLOAT, "
-        "new_price FLOAT, amount INT)"
+        "CREATE TABLE IF NOT EXISTS packages(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id, package_url UNIQUE, package_name, brand_name, old_price FLOAT, "
+        "new_price FLOAT)"
     )
     base.commit()
 
@@ -21,6 +21,6 @@ def check_user_in_db(user_id):
 
 
 def check_packages(user_id):
-    cur.execute(f"SELECT package_url, package_name FROM packages WHERE user_id ={user_id}")
+    cur.execute(f"SELECT package_url, package_name, brand_name, old_price FROM packages WHERE user_id ={user_id}")
     return cur.fetchall()
 
