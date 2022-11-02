@@ -1,4 +1,8 @@
 from datetime import datetime
+
+import database
+from states.set_states import Url_input
+
 import parser_wb_page
 from aiogram import Bot, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
@@ -11,7 +15,7 @@ import states.set_states
 from buttons.keyboard_button import inline_start_kb
 from config import TOKEN
 from database import db_admin
-from database.db_admin import check_user_in_db, add_new_user, add_item_info
+from database.db_admin import check_user_in_db, add_new_user, add_item_info, add_discount
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
@@ -37,19 +41,19 @@ async def start_command(message: types.Message):
 # Ловим ответ на нажатие инлайн кнопки "Отравить ссылку на товар"
 @dp.callback_query_handler(text='url_button')
 async def send_start_url(callback: CallbackQuery):
-    await states.set_states.Url_input.insert_url.set()
+    await Url_input.insert_url.set()
     await callback.message.answer("Введите ссылку на страницу товара >>>  ")
 
 
 # Проверяем ответ и сохраняем ссылку в БД
-@dp.message_handler(state=states.set_states.Url_input.insert_url)
+@dp.message_handler(state=Url_input.insert_url)
 async def url_input_state(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['url'] = message.text
         if message.text.split("/")[0] != 'https:' and message.text:
             await message.answer(
                 "Введите ссылку в верном формате : (https://www.wildberries.ru/catalog/number/detail.aspx")
-            await states.set_states.Url_input.insert_url.set()
+            await Url_input.insert_url.set()
 
 
         else:
@@ -64,36 +68,79 @@ async def url_input_state(message: types.Message, state: FSMContext):
                 await state.finish()
 
 
-
-
-
 # Ловим ответ на нажатие инлайн кнопки "Посмотреть мои товары "
 @dp.callback_query_handler(text='package_button')
 async def send_start_package(callback: CallbackQuery):
+    if db_admin.check_packages(callback.message.chat.id) == None:
+        await callback.message.answer("Ваш список товаров пуст")
+
     if db_admin.check_packages(callback.message.chat.id) != None:
 
         package_list = db_admin.check_packages(callback.message.chat.id)
         for package in package_list:
             await callback.message.answer(
-                f'{package[0]} ※ ·❆· ※ <b>{package[1]}</b> ※ ·❆· ※ <b>Бренд: {package[2]}</b> ※ ·❆· ※ <b>Цена: {package[3]}</b>',
+                f'{package[0]}.{package[1]}\n ※※※ <b>{package[2]} ※※※ {package[3]}</b> ※※※ <b>   Цена: {package[4]}</b>',
                 parse_mode='html')
 
         await callback.message.answer("Ваш список товаров 😎", reply_markup=inline_start_kb)
-
-
+        await callback.answer()
 
 
     else:
-        await callback.message.answer("Ваш список товаров пуст")
+        await callback.answer()
 
 
 # Ловим ответ на нажатие инлайн кнопки "Помощь"
 @dp.callback_query_handler(text='help_button')
-async def sent_start_help(callback: CallbackQuery):
+async def send_start_help(callback: CallbackQuery):
     await callback.answer(
-        text="Чтобы воспользоваться функционалом бота введите  /start или нажми кнопку из меню",
+        text="Чтобы воспользоваться функционалом бота введите  /start или нажмите кнопку из меню",
         show_alert=True
     )
+
+
+@dp.callback_query_handler(text='delete_button')
+async def send_delete_button(callback: CallbackQuery):
+    await callback.answer(
+        text="Чтобы удалить товар из списка, введите его номер ",
+        show_alert=True
+    )
+    package_list = db_admin.check_packages(callback.message.chat.id)
+    for package in package_list:
+        await callback.message.answer(
+            f'{package[0]}.{package[1]}\n ※※※ <b>{package[2]} ※※※ {package[3]}</b> ※※※ <b>   Цена: {package[4]}</b>',
+            parse_mode='html')
+    await Url_input.insert_item_id.set()
+    await callback.answer()
+
+
+@dp.callback_query_handler(text='personal_sale_button')
+async def personal_sale(callback: CallbackQuery):
+    await callback.answer("Введите вашу персональную скидку, для более точного отображения цен на товары",
+                          show_alert=True
+                          )
+    await callback.message.answer("введите скидку:    ")
+    await Url_input.insert_discount.set()
+
+
+
+
+
+@dp.message_handler(state=Url_input.insert_item_id)
+async def url_input_state(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['id_to_delete'] = message.text
+        database.db_admin.delete_item_from_db(message.text)
+        await state.finish()
+        await message.answer("Товар удалён из списка отслеживаемых", reply_markup=inline_start_kb )
+
+@dp.message_handler(state=Url_input.insert_discount)
+async def discount_input_state(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        discount = message.text
+        database.db_admin.add_discount(message.from_user.id,discount)
+        await state.finish()
+        await message.answer(f"Персональная скидка составляет {discount}%", reply_markup=inline_start_kb)
 
 
 @dp.message_handler(commands=['spam'])
