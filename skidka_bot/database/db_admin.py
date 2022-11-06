@@ -1,4 +1,7 @@
+import asyncio
 import sqlite3
+
+import aioschedule as aioschedule
 
 
 def sql_start():
@@ -35,10 +38,35 @@ def check_packages(user_id):
     cur.execute(f"SELECT id, package_url, package_name, brand_name, old_price FROM packages WHERE user_id ={user_id}")
     return cur.fetchall()
 
+
 def delete_item_from_db(id):
     cur.execute(f"DELETE from packages WHERE id ={id}")
     base.commit()
 
+
+def check_old_price(user_id):
+    cur.execute(f"SELECT old_price FROM packages WHERE user_id = {user_id}")
+    return cur.fetchall()
+
+
+# def add_new_price(new_price_list):
+#     cur.execute(f"UPDATE packages set new_price = {} WHERE package_url ={new_price_list}")
+#     base.commit()
+def check_new_price(user_id):
+    cur.execute(f"SELECT new_price FROM packages WHERE user_id = {user_id}")
+    return cur.fetchall()
+
+
+def take_url():
+    cur.execute(f"SELECT package_url from packages ORDER BY id")
+    return cur.fetchall()
+
+
 def add_discount(user_id, discount):
     cur.execute(f"UPDATE users SET discount ={discount} WHERE user_id = {user_id}")
+    base.commit()
+
+
+def add_new_price(param,url):
+    cur.execute("UPDATE packages SET new_price =? WHERE package_url = (?)", (param, url))
     base.commit()

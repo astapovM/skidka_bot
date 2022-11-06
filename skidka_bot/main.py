@@ -1,6 +1,5 @@
 from datetime import datetime
 
-import database
 from states.set_states import Url_input
 
 import parser_wb_page
@@ -11,11 +10,10 @@ from aiogram.types import CallbackQuery
 from aiogram.utils import executor
 import sqlite3
 
-import states.set_states
 from buttons.keyboard_button import inline_start_kb
 from config import TOKEN
 from database import db_admin
-from database.db_admin import check_user_in_db, add_new_user, add_item_info, add_discount
+from database.db_admin import check_user_in_db, add_new_user, add_item_info, add_discount, take_url, add_new_price
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
@@ -41,6 +39,8 @@ async def start_command(message: types.Message):
 # Ловим ответ на нажатие инлайн кнопки "Отравить ссылку на товар"
 @dp.callback_query_handler(text='url_button')
 async def send_start_url(callback: CallbackQuery):
+    await bot.delete_message(chat_id=callback.from_user.id, message_id=callback.message.message_id)
+    await callback.message.answer("•••••• ━───────────── • •• •• •• • ─────────────━ ••••••")
     await Url_input.insert_url.set()
     await callback.message.answer("Введите ссылку на страницу товара >>>  ")
 
@@ -71,11 +71,9 @@ async def url_input_state(message: types.Message, state: FSMContext):
 # Ловим ответ на нажатие инлайн кнопки "Посмотреть мои товары "
 @dp.callback_query_handler(text='package_button')
 async def send_start_package(callback: CallbackQuery):
-    if db_admin.check_packages(callback.message.chat.id) == None:
-        await callback.message.answer("Ваш список товаров пуст")
-
     if db_admin.check_packages(callback.message.chat.id) != None:
-
+        await bot.delete_message(chat_id=callback.from_user.id, message_id=callback.message.message_id)
+        await callback.message.answer("•••••• ━───────────── • •• •• •• • ─────────────━ ••••••")
         package_list = db_admin.check_packages(callback.message.chat.id)
         for package in package_list:
             await callback.message.answer(
@@ -83,11 +81,10 @@ async def send_start_package(callback: CallbackQuery):
                 parse_mode='html')
 
         await callback.message.answer("Ваш список товаров 😎", reply_markup=inline_start_kb)
-        await callback.answer()
 
 
     else:
-        await callback.answer()
+        await callback.message.answer("Ваш список товаров пуст")
 
 
 # Ловим ответ на нажатие инлайн кнопки "Помощь"
@@ -101,6 +98,8 @@ async def send_start_help(callback: CallbackQuery):
 
 @dp.callback_query_handler(text='delete_button')
 async def send_delete_button(callback: CallbackQuery):
+    await bot.delete_message(chat_id=callback.from_user.id, message_id=callback.message.message_id)
+    await callback.message.answer("•••••• ━───────────── • •• •• •• • ─────────────━ ••••••")
     await callback.answer(
         text="Чтобы удалить товар из списка, введите его номер ",
         show_alert=True
@@ -123,22 +122,20 @@ async def personal_sale(callback: CallbackQuery):
     await Url_input.insert_discount.set()
 
 
-
-
-
 @dp.message_handler(state=Url_input.insert_item_id)
 async def url_input_state(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['id_to_delete'] = message.text
-        database.db_admin.delete_item_from_db(message.text)
+        db_admin.delete_item_from_db(message.text)
         await state.finish()
-        await message.answer("Товар удалён из списка отслеживаемых", reply_markup=inline_start_kb )
+        await message.answer("Товар удалён из списка отслеживаемых", reply_markup=inline_start_kb)
+
 
 @dp.message_handler(state=Url_input.insert_discount)
 async def discount_input_state(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         discount = message.text
-        database.db_admin.add_discount(message.from_user.id,discount)
+        db_admin.add_discount(message.from_user.id, discount)
         await state.finish()
         await message.answer(f"Персональная скидка составляет {discount}%", reply_markup=inline_start_kb)
 
@@ -155,5 +152,22 @@ async def command_not_found(message: types.Message):
     await message.answer(f"Команда {message.text} не найдена")
 
 
+# функция для отправки сообщения пользователям , при наличии скидки на товар
+# # async def message_to_users():
+# param = []
+# for url in take_url():
+#     param.append(float((parser_wb_page.page_parce(url[0])[2])))
+# print(param)
+#     # add_new_price(param,url)
+
+# add_new_price(param)
+
+
+# Создание задачи на ежедневный запуск парсера цены, и отправки сообщения пользователям.
+# async def scheduler():
+#     aioschedule.every().day.at("13:00").do(message_to_users, "message")
+#     while True:
+#         await aioschedule.run_pending()
+#         await asyncio.sleep(10)
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
