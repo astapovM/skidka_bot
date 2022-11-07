@@ -13,7 +13,7 @@ import sqlite3
 from buttons.keyboard_button import inline_start_kb
 from config import TOKEN
 from database import db_admin
-from database.db_admin import check_user_in_db, add_new_user, add_item_info, add_discount, take_url, add_new_price
+from database.db_admin import check_user_in_db, add_new_user, add_item_info, add_discount, add_new_price, take_url
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
@@ -153,15 +153,11 @@ async def command_not_found(message: types.Message):
 
 
 # функция для отправки сообщения пользователям , при наличии скидки на товар
-# # async def message_to_users():
-# param = []
-# for url in take_url():
-#     param.append(float((parser_wb_page.page_parce(url[0])[2])))
-# print(param)
-#     # add_new_price(param,url)
-
-# add_new_price(param)
-
+# async def message_to_users():
+for url in take_url():
+    url_for_update = (url[0])
+    price_for_update = parser_wb_page.page_parce(url[0])[2]
+    add_new_price(price_for_update, url_for_update)
 
 # Создание задачи на ежедневный запуск парсера цены, и отправки сообщения пользователям.
 # async def scheduler():

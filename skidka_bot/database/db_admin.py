@@ -67,6 +67,6 @@ def add_discount(user_id, discount):
     base.commit()
 
 
-def add_new_price(param,url):
-    cur.execute("UPDATE packages SET new_price =? WHERE package_url = (?)", (param, url))
+def add_new_price(price_for_update, url_for_update):
+    cur.execute(f"UPDATE packages SET new_price = ? WHERE package_url = ?", (price_for_update, url_for_update))
     base.commit()
