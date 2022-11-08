@@ -1,4 +1,7 @@
+import asyncio
 from datetime import datetime
+
+import aioschedule
 
 from states.set_states import Url_input
 
@@ -13,7 +16,8 @@ import sqlite3
 from buttons.keyboard_button import inline_start_kb
 from config import TOKEN
 from database import db_admin
-from database.db_admin import check_user_in_db, add_new_user, add_item_info, add_discount, add_new_price, take_url
+from database.db_admin import check_user_in_db, add_new_user, add_item_info, add_discount, add_new_price, take_url, \
+    check_prices
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
@@ -33,7 +37,8 @@ async def start_command(message: types.Message):
         params = (message.from_user.id, message.from_user.first_name, date)
         add_new_user(params)
     else:
-        await message.answer(f"{message.from_user.full_name}, калайсын есь жи", reply_markup=inline_start_kb)
+        await message.answer(f"Привет, {message.from_user.full_name}. Начинаем экономить  🥳 🥳 ",
+                             reply_markup=inline_start_kb)
 
 
 # Ловим ответ на нажатие инлайн кнопки "Отравить ссылку на товар"
@@ -76,8 +81,7 @@ async def send_start_package(callback: CallbackQuery):
         await callback.message.answer("•••••• ━───────────── • •• •• •• • ─────────────━ ••••••")
         package_list = db_admin.check_packages(callback.message.chat.id)
         for package in package_list:
-            await callback.message.answer(
-                f'{package[0]}.{package[1]}\n ※※※ <b>{package[2]} ※※※ {package[3]}</b> ※※※ <b>   Цена: {package[4]}</b>',
+            await callback.message.answer(f'{package[0]}.{package[1]}\n ※※※ <b>{package[2]} ※※※ {package[3]}</b> ※※※ <b>   Цена: {package[4]}</b>',
                 parse_mode='html')
 
         await callback.message.answer("Ваш список товаров 😎", reply_markup=inline_start_kb)
@@ -90,9 +94,11 @@ async def send_start_package(callback: CallbackQuery):
 # Ловим ответ на нажатие инлайн кнопки "Помощь"
 @dp.callback_query_handler(text='help_button')
 async def send_start_help(callback: CallbackQuery):
-    await callback.answer(
-        text="Чтобы воспользоваться функционалом бота введите  /start или нажмите кнопку из меню",
-        show_alert=True
+    await callback.message.answer(
+        text="Бот создан чтобы отслеживать скидки на Wildberries. \nДобавляйте товары в список "
+             "отслеживаемых - и бот сообщит Вам, когда цена на товар изменится."
+             "\nЧтобы начать введите  /start или нажмите кнопку из меню"
+
     )
 
 
@@ -146,24 +152,56 @@ async def spam(message):
         await bot.send_message(5670943281, 'Привет')
 
 
+# функция для отправки сообщения пользователям , при наличии скидки на товар
+# async def message_to_users():
+
+# Парсинг цены и занесение в БД (new_price)
+def add_new_price_in_db():
+    for url in take_url():
+        url_for_update = (url[0])
+        price_for_update = parser_wb_page.page_parce(url[0])[2]
+        add_new_price(price_for_update, url_for_update)
+
+
+@dp.message_handler(commands=['distribution'])
+async def send_message(message):
+    add_new_price_in_db()
+    for i in check_prices():
+        try:
+            if i[2] < i[1]:
+                skidka = i[1] - i[2]
+                await bot.send_message(i[0], f'Цена на товар:\n{i[3]}   \n{i[4]} снижена на ※※{int(skidka)}руб※※'
+                                             f'\nЛичная скидка временно не учитывается')
+                print(f"Сообщение пользователю {i[0]} о скидке на товар {i[3]} на {skidka}руб. доставлено")
+            elif i[2] > i[1]:
+                skidka = i[1] - i[2]
+                await bot.send_message(i[0], f'Цена на товар:\n{i[3]}   \n{i[4]} увеличилась на ※※{int(skidka)}руб※※'
+                                             f'\nЛичная скидка временно не учитывается')
+                print(f"Сообщение пользователю {i[0]} о повышении цены на товар {i[3]} на {skidka}руб. доставлено")
+
+        except TypeError:
+            continue
+
+
+# Создание задачи на ежедневный запуск парсера цены, и отправки сообщения пользователям.
+async def scheduler():
+    aioschedule.every().day.at("13:39").do(send_message, "message")
+    aioschedule.every().day.at("13:40").do(send_message, "message")
+    while True:
+        await aioschedule.run_pending()
+        await asyncio.sleep(10)
+
+
 @dp.message_handler()
 async def command_not_found(message: types.Message):
     await message.delete()
     await message.answer(f"Команда {message.text} не найдена")
 
 
-# функция для отправки сообщения пользователям , при наличии скидки на товар
-# async def message_to_users():
-for url in take_url():
-    url_for_update = (url[0])
-    price_for_update = parser_wb_page.page_parce(url[0])[2]
-    add_new_price(price_for_update, url_for_update)
+async def on_startup(_):
+    asyncio.create_task(scheduler())
 
-# Создание задачи на ежедневный запуск парсера цены, и отправки сообщения пользователям.
-# async def scheduler():
-#     aioschedule.every().day.at("13:00").do(message_to_users, "message")
-#     while True:
-#         await aioschedule.run_pending()
-#         await asyncio.sleep(10)
+
 if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=True)
+    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
+    add_new_price_in_db()
