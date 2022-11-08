@@ -31,7 +31,7 @@ admin = 293427068
 async def start_command(message: types.Message):
     if check_user_in_db(message.from_user.id) == None:
         await message.answer(f"Привет, {message.from_user.first_name}. Я - бот для отслеживания скидок."
-                             f"Оставляй ссылку на товар - а я сообщу тебе,когда на него появится скидка",
+                             f"Оставляй ссылку на товар - а я сообщу тебе,когда на него появится скидка или же наоборот, товар подорожает",
                              reply_markup=inline_start_kb,
                              )
         params = (message.from_user.id, message.from_user.first_name, date)
