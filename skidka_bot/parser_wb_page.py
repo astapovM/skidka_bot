@@ -29,4 +29,4 @@ def page_parce(url):
         item_price = item_price.__round__()
         item_raiting = item['rating']
         # print(f"Название: {item_name}\nБренд: {item_brand}\nЦена: {item_price} рублей\nРейтинг товара: {item_raiting} звезд(ы)")
-    return (item_name[0:17], item_brand, item_price, item_raiting)
+    return (item_name[0:15], item_brand, item_price, item_raiting)
