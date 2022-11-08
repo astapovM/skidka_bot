@@ -81,7 +81,8 @@ async def send_start_package(callback: CallbackQuery):
         await callback.message.answer("•••••• ━───────────── • •• •• •• • ─────────────━ ••••••")
         package_list = db_admin.check_packages(callback.message.chat.id)
         for package in package_list:
-            await callback.message.answer(f'{package[0]}.{package[1]}\n ※※※ <b>{package[2]} ※※※ {package[3]}</b> ※※※ <b>   Цена: {package[4]}</b>',
+            await callback.message.answer(
+                f'{package[0]}.{package[1]}\n ※※※ <b>{package[2]} ※※※ {package[3]}</b> ※※※ <b>   Цена: {package[4]}</b>',
                 parse_mode='html')
 
         await callback.message.answer("Ваш список товаров 😎", reply_markup=inline_start_kb)
@@ -177,7 +178,7 @@ async def send_message(message):
                 skidka = i[1] - i[2]
                 await bot.send_message(i[0], f'Цена на товар:\n{i[3]}   \n{i[4]} увеличилась на ※※{int(skidka)}руб※※'
                                              f'\nЛичная скидка временно не учитывается')
-                print(f"Сообщение пользователю {i[0]} о повышении цены на товар {i[3]} на {skidka}руб. доставлено")
+                print(f"Сообщение пользователю {i[0]} о повышении цены на товар {i[3]} на {abs(skidka)}руб. доставлено")
 
         except TypeError:
             continue
@@ -185,6 +186,7 @@ async def send_message(message):
 
 # Создание задачи на ежедневный запуск парсера цены, и отправки сообщения пользователям.
 async def scheduler():
+    add_new_price_in_db()
     aioschedule.every().day.at("13:00").do(send_message, "message")
     aioschedule.every().day.at("20:00").do(send_message, "message")
     while True:
