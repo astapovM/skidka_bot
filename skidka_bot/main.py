@@ -185,8 +185,8 @@ async def send_message(message):
 
 # Создание задачи на ежедневный запуск парсера цены, и отправки сообщения пользователям.
 async def scheduler():
-    aioschedule.every().day.at("13:39").do(send_message, "message")
-    aioschedule.every().day.at("13:40").do(send_message, "message")
+    aioschedule.every().day.at("13:00").do(send_message, "message")
+    aioschedule.every().day.at("20:00").do(send_message, "message")
     while True:
         await aioschedule.run_pending()
         await asyncio.sleep(10)
