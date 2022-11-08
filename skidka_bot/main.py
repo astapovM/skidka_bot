@@ -13,11 +13,11 @@ from aiogram.types import CallbackQuery
 from aiogram.utils import executor
 import sqlite3
 
-from buttons.keyboard_button import inline_start_kb
+from buttons.keyboard_button import inline_start_kb, delete_all_kb
 from config import TOKEN
 from database import db_admin
 from database.db_admin import check_user_in_db, add_new_user, add_item_info, add_discount, add_new_price, take_url, \
-    check_prices
+    check_prices, delete_all_items
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
@@ -78,12 +78,17 @@ async def url_input_state(message: types.Message, state: FSMContext):
 async def send_start_package(callback: CallbackQuery):
     if db_admin.check_packages(callback.message.chat.id) != None:
         await bot.delete_message(chat_id=callback.from_user.id, message_id=callback.message.message_id)
-        await callback.message.answer("•••••• ━───────────── • •• •• •• • ─────────────━ ••••••")
+        await callback.message.answer("•••••• ━───────────── • •• •• •• •• •• • ─────────────━ ••••••")
         package_list = db_admin.check_packages(callback.message.chat.id)
         for package in package_list:
-            await callback.message.answer(
-                f'{package[0]}.{package[1]}\n ※※※ <b>{package[2]} ※※※ {package[3]}</b> ※※※ <b>   Цена: {package[4]}</b>',
-                parse_mode='html')
+            if package[4] == None:
+                await callback.message.answer(
+                    f'{package[0]}. {package[1]}\n ※※※ <b>{package[2]} ※※※ {package[3]}</b> ※※※ <b>   Цена: {package[5]}</b>',
+                    parse_mode='html')
+            else:
+                await callback.message.answer(
+                    f'{package[0]}. {package[1]}\n ※※※ <b>{package[2]} ※※※ {package[3]}</b> ※※※ <b>   Цена: {package[4]}</b>',
+                    parse_mode='html')
 
         await callback.message.answer("Ваш список товаров 😎", reply_markup=inline_start_kb)
 
@@ -129,6 +134,28 @@ async def personal_sale(callback: CallbackQuery):
     await Url_input.insert_discount.set()
 
 
+# Хендлер для удаления всех записей
+@dp.callback_query_handler(text='delete_all_button')
+async def delete_all_items(callback: CallbackQuery):
+    await callback.message.answer("Вы уверены, что хотите удалить все товары из вашего списка?",
+                                  reply_markup=delete_all_kb)
+
+
+# Принимаем ответ на удаление
+@dp.callback_query_handler(text='confirm_button')
+async def confirm_delete(callback: CallbackQuery):
+    await bot.delete_message(chat_id=callback.from_user.id, message_id=callback.message.message_id)
+    db_admin.delete_all_items(callback.message.chat.id)
+    await callback.message.answer("Все ваши товары были удалены. Добавьте новые для отслеживания цены 🙃")
+
+
+# Отмена удаления
+@dp.callback_query_handler(text='cancel_confirm_button')
+async def cancel_delete(callback: CallbackQuery):
+    await bot.delete_message(chat_id=callback.from_user.id, message_id=callback.message.message_id)
+    await callback.message.answer("И это правильно 😉", reply_markup=inline_start_kb)
+
+
 @dp.message_handler(state=Url_input.insert_item_id)
 async def url_input_state(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
@@ -162,6 +189,27 @@ def add_new_price_in_db():
         url_for_update = (url[0])
         price_for_update = parser_wb_page.page_parce(url[0])[2]
         add_new_price(price_for_update, url_for_update)
+
+
+@dp.message_handler(commands=['howmuch'])
+async def how_much(message):
+    add_new_price_in_db()
+    for i in check_prices():
+        try:
+            if i[2] < i[1]:
+                skidka = i[1] - i[2]
+                print(i[0], f'Цена на товар:\n{i[3]}   \n{i[4]} снижена на ※※{int(skidka)}руб※※')
+                await asyncio.sleep(1)
+
+            elif i[2] > i[1]:
+                skidka = i[1] - i[2]
+                print(i[0], f'Цена на товар:\n{i[3]}   \n{i[4]} увеличилась на ※※{abs(int(skidka))}руб※※'
+                      )
+                await asyncio.sleep(1)
+
+
+        except TypeError:
+            continue
 
 
 @dp.message_handler(commands=['distribution'])

@@ -35,7 +35,7 @@ def check_user_in_db(user_id):
 
 
 def check_packages(user_id):
-    cur.execute(f"SELECT id, package_url, package_name, brand_name, old_price FROM packages WHERE user_id ={user_id}")
+    cur.execute(f"SELECT id, package_url, package_name, brand_name, new_price, old_price FROM packages WHERE user_id ={user_id}")
     return cur.fetchall()
 
 
@@ -48,10 +48,6 @@ def check_prices():
     cur.execute(f"SELECT user_id, old_price, new_price, package_url, package_name FROM packages")
     return cur.fetchall()
 
-
-# def add_new_price(new_price_list):
-#     cur.execute(f"UPDATE packages set new_price = {} WHERE package_url ={new_price_list}")
-#     base.commit()
 def check_new_price(user_id):
     cur.execute(f"SELECT new_price FROM packages WHERE user_id = {user_id}")
     return cur.fetchall()
@@ -69,4 +65,8 @@ def add_discount(user_id, discount):
 
 def add_new_price(price_for_update, url_for_update):
     cur.execute(f"UPDATE packages SET new_price = ? WHERE package_url = ?", (price_for_update, url_for_update))
+    base.commit()
+
+def delete_all_items(user_id):
+    cur.execute(f"DELETE FROM packages WHERE user_id ={user_id}")
     base.commit()

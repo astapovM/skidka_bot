@@ -8,6 +8,10 @@ personal_sale_button = InlineKeyboardButton('%💲 Ввести свою пер�
                                             callback_data='personal_sale_button')
 delete_all = InlineKeyboardButton('☢️☢️❗️Удалить все товары из списка ☢️☢️❗️',
                                   callback_data='delete_all_button')
-# cancel_button =
+confirm_delete_button = InlineKeyboardButton('✅ Да, удалить всё ✅', callback_data='confirm_button')
+cancel_confirm_button = InlineKeyboardButton("❌ Отмена ❌", callback_data='cancel_confirm_button')
+
 inline_start_kb = InlineKeyboardMarkup().add(start_button1).add(check_items).add(
     delete_button).add(help_button).add(delete_all)
+
+delete_all_kb = InlineKeyboardMarkup().add(confirm_delete_button).add(cancel_confirm_button)
