@@ -44,8 +44,8 @@ def delete_item_from_db(id):
     base.commit()
 
 
-def check_old_price(user_id):
-    cur.execute(f"SELECT old_price FROM packages WHERE user_id = {user_id}")
+def check_prices():
+    cur.execute(f"SELECT user_id, old_price, new_price, package_url, package_name FROM packages")
     return cur.fetchall()
 
 
