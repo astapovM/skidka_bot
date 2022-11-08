@@ -4,8 +4,6 @@ import re
 
 
 # url = 'https://www.wildberries.ru/catalog/97565916/detail.aspx?targetUrl=BP'
-
-
 # Вариант получения нужной ссылки через регулярные выражения
 # url_fix= [int(s) for s in re.findall(r'-?\d+\.?\d*', url)]
 #
