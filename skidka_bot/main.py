@@ -3,6 +3,7 @@ from datetime import datetime
 
 import aioschedule
 
+import states
 from states.set_states import Url_input
 
 import parser_wb_page
@@ -13,7 +14,7 @@ from aiogram.types import CallbackQuery
 from aiogram.utils import executor
 import sqlite3
 
-from buttons.keyboard_button import inline_start_kb, delete_all_kb
+from buttons.keyboard_button import inline_start_kb, delete_all_kb, call_cancel_button
 from config import TOKEN
 from database import db_admin
 from database.db_admin import check_user_in_db, add_new_user, add_item_info, add_discount, add_new_price, take_url, \
@@ -41,26 +42,35 @@ async def start_command(message: types.Message):
                              reply_markup=inline_start_kb)
 
 
+@dp.message_handler(text="♻️Вернуться в меню ♻")
+async def cancel_button(message: types.Message, state: FSMContext):
+    await state.finish()
+    await message.answer("Возврат в главное меню", reply_markup=inline_start_kb)
+
+
 # Ловим ответ на нажатие инлайн кнопки "Отравить ссылку на товар"
 @dp.callback_query_handler(text='url_button')
 async def send_start_url(callback: CallbackQuery):
     await bot.delete_message(chat_id=callback.from_user.id, message_id=callback.message.message_id)
     await callback.message.answer("•••••• ━───────────── • •• •• •• • ─────────────━ ••••••")
     await Url_input.insert_url.set()
-    await callback.message.answer("Введите ссылку на страницу товара >>>  ")
+    await callback.message.answer("Введите ссылку на страницу товара >>>  ", reply_markup=call_cancel_button)
 
 
 # Проверяем ответ и сохраняем ссылку в БД
 @dp.message_handler(state=Url_input.insert_url)
 async def url_input_state(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
+        if message.text == '♻️Вернуться в меню ♻':
+            await state.finish()
+            await message.answer("Возврат в главное меню", reply_markup=inline_start_kb)
+            return
+        wild = 'https://www.wildberries.ru'
         data['url'] = message.text
-        if message.text.split("/")[0] != 'https:' and message.text:
+        if wild not in message.text:
             await message.answer(
-                "Введите ссылку в верном формате : (https://www.wildberries.ru/catalog/number/detail.aspx")
+                "Введите ссылку в верном формате : (https://www.wildberries.ru/catalog/number/detail.aspx)",reply_markup=call_cancel_button)
             await Url_input.insert_url.set()
-
-
         else:
             item_info = parser_wb_page.page_parce(message.text)
             params = (message.chat.id, data['url'], item_info[0], item_info[1], item_info[2])
@@ -70,6 +80,8 @@ async def url_input_state(message: types.Message, state: FSMContext):
                 await message.answer("Товар добавлен", reply_markup=inline_start_kb)
             except sqlite3.IntegrityError:
                 await message.answer("Такой товар уже есть в вашем списке", reply_markup=inline_start_kb)
+                await state.finish()
+            except UnboundLocalError:
                 await state.finish()
 
 
@@ -109,20 +121,22 @@ async def send_start_help(callback: CallbackQuery):
 
 
 @dp.callback_query_handler(text='delete_button')
-async def send_delete_button(callback: CallbackQuery):
+async def send_delete_button(callback: CallbackQuery, state: FSMContext):
     await bot.delete_message(chat_id=callback.from_user.id, message_id=callback.message.message_id)
     await callback.message.answer("•••••• ━───────────── • •• •• •• • ─────────────━ ••••••")
-    await callback.answer(
-        text="Чтобы удалить товар из списка, введите его номер ",
-        show_alert=True
-    )
-    package_list = db_admin.check_packages(callback.message.chat.id)
-    for package in package_list:
-        await callback.message.answer(
-            f'{package[0]}.{package[1]}\n ※※※ <b>{package[2]} ※※※ {package[3]}</b> ※※※ <b>   Цена: {package[4]}</b>',
-            parse_mode='html')
-    await Url_input.insert_item_id.set()
-    await callback.answer()
+    await callback.message.answer("Введите номер товара :", reply_markup=call_cancel_button)
+
+    try:
+        package_list = db_admin.check_packages(callback.message.chat.id)
+        for package in package_list:
+            await callback.message.answer(
+                f'{package[0]}. {package[1]}\n ※※※ <b>{package[2]} ※※※ {package[3]}</b> ※※※ <b>   Цена: {package[4]}</b>',
+                parse_mode='html')
+        await Url_input.insert_item_id.set()
+        await callback.answer()
+        await state.finish()
+    except sqlite3.OperationalError:
+        await state.finish()
 
 
 @dp.callback_query_handler(text='personal_sale_button')
@@ -174,7 +188,7 @@ async def discount_input_state(message: types.Message, state: FSMContext):
         await message.answer(f"Персональная скидка составляет {discount}%", reply_markup=inline_start_kb)
 
 
-@dp.message_handler(commands=['spam'])
+@dp.message_handler(commands=['message'])
 async def spam(message):
     if message.from_user.id == admin:
         await bot.send_message(5670943281, 'Привет')
@@ -199,12 +213,14 @@ async def how_much(message):
             if i[2] < i[1]:
                 skidka = i[1] - i[2]
                 print(i[0], f'Цена на товар:\n{i[3]}   \n{i[4]} снижена на ※※{int(skidka)}руб※※')
+                print("*" * 30)
                 await asyncio.sleep(1)
 
             elif i[2] > i[1]:
                 skidka = i[1] - i[2]
                 print(i[0], f'Цена на товар:\n{i[3]}   \n{i[4]} увеличилась на ※※{abs(int(skidka))}руб※※'
                       )
+                print("*" * 30)
                 await asyncio.sleep(1)
 
 
@@ -212,7 +228,7 @@ async def how_much(message):
             continue
 
 
-@dp.message_handler(commands=['distribution'])
+@dp.message_handler(commands=['spam'])
 async def send_message(message):
     add_new_price_in_db()
     for i in check_prices():
