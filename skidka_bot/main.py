@@ -69,7 +69,8 @@ async def url_input_state(message: types.Message, state: FSMContext):
         data['url'] = message.text
         if wild not in message.text:
             await message.answer(
-                "Введите ссылку в верном формате : (https://www.wildberries.ru/catalog/number/detail.aspx)",reply_markup=call_cancel_button)
+                "Введите ссылку в верном формате : (https://www.wildberries.ru/catalog/number/detail.aspx)",
+                reply_markup=call_cancel_button)
             await Url_input.insert_url.set()
         else:
             item_info = parser_wb_page.page_parce(message.text)
@@ -134,7 +135,6 @@ async def send_delete_button(callback: CallbackQuery, state: FSMContext):
                 parse_mode='html')
         await Url_input.insert_item_id.set()
         await callback.answer()
-        await state.finish()
     except sqlite3.OperationalError:
         await state.finish()
 
