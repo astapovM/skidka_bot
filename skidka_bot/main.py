@@ -1,12 +1,7 @@
-#!/usr/bin/env python
 import asyncio
 from datetime import datetime
-
 import aioschedule
-
-import states
 from states.set_states import Url_input
-
 import parser_wb_page
 from aiogram import Bot, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
@@ -186,11 +181,10 @@ async def url_input_state(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=Url_input.insert_discount)
 async def discount_input_state(message: types.Message, state: FSMContext):
-    async with state.proxy() as data:
-        discount = message.text
-        db_admin.add_discount(message.from_user.id, discount)
-        await state.finish()
-        await message.answer(f"Персональная скидка составляет {discount}%", reply_markup=inline_start_kb)
+    discount = message.text
+    db_admin.add_discount(message.from_user.id, discount)
+    await state.finish()
+    await message.answer(f"Персональная скидка составляет {discount}%", reply_markup=inline_start_kb)
 
 
 @dp.message_handler(commands=['message'])
@@ -215,7 +209,6 @@ def update_old_price_in_db():
         url_for_update = (url[0])
         price_for_update = parser_wb_page.page_parce(url[0])[2]
         update_old_price(price_for_update, url_for_update)
-
 
 
 @dp.message_handler(commands=['howmuch'])
@@ -292,4 +285,3 @@ async def on_startup(_):
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
     add_new_price_in_db()
-

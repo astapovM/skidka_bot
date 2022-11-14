@@ -1,7 +1,6 @@
-import asyncio
+
 import sqlite3
 
-import aioschedule as aioschedule
 
 
 def sql_start():
@@ -45,7 +44,7 @@ def delete_item_from_db(id):
 
 
 def check_prices():
-    cur.execute(f"SELECT user_id, old_price, new_price, package_url, package_name FROM packages")
+    cur.execute("SELECT user_id, old_price, new_price, package_url, package_name FROM packages")
     return cur.fetchall()
 
 def check_new_price(user_id):
@@ -54,7 +53,7 @@ def check_new_price(user_id):
 
 
 def take_url():
-    cur.execute(f"SELECT package_url from packages ORDER BY id")
+    cur.execute("SELECT package_url from packages ORDER BY id")
     return cur.fetchall()
 
 
@@ -64,11 +63,11 @@ def add_discount(user_id, discount):
 
 
 def add_new_price(price_for_update, url_for_update):
-    cur.execute(f"UPDATE packages SET new_price = ? WHERE package_url = ?", (price_for_update, url_for_update))
+    cur.execute("UPDATE packages SET new_price = ? WHERE package_url = ?", (price_for_update, url_for_update))
     base.commit()
 
 def update_old_price(price_for_update, url_for_update):
-    cur.execute(f"UPDATE packages SET old_price = ? WHERE package_url = ?", (price_for_update, url_for_update))
+    cur.execute("UPDATE packages SET old_price = ? WHERE package_url = ?", (price_for_update, url_for_update))
     base.commit()
 
 def delete_all_items(user_id):
