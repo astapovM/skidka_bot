@@ -1,5 +1,5 @@
-=======
+
 aioschedule==0.5.2
 requests==2.28.1
 pandas==1.5.1
->>>>>>> new_feature
+
