@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import asyncio
 from datetime import datetime
 
@@ -24,6 +25,7 @@ bot = Bot(token=TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
 db_admin.sql_start()
 date = datetime.now().date()
+current_datetime = datetime.now()
 admin = 293427068
 
 
@@ -239,6 +241,8 @@ async def how_much(message):
 
         except TypeError:
             continue
+    await bot.send_message(admin, f"Проверка цен выполнена {current_datetime.strftime('%d %B %Y в %H:%M')}")
+    print(f"Проверка цен выполнена {current_datetime.strftime('%d %B %Y в %H:%M')}")
 
 
 @dp.message_handler(commands=['spam'])
@@ -261,16 +265,18 @@ async def send_message(message):
 
         except TypeError:
             continue
+    print(f"Проверка цен выполнена {current_datetime.strftime('%d %B %Y в %H:%M')}")
+    await bot.send_message(admin, f"Проверка цен выполнена {current_datetime.strftime('%d %B %Y в %H:%M')}")
 
 
 # Создание задачи на ежедневный запуск парсера цены, и отправки сообщения пользователям.
 async def scheduler():
     add_new_price_in_db()
-    aioschedule.every().day.at("13:00").do(send_message, "message")
-    aioschedule.every().day.at("20:00").do(send_message, "message")
+    aioschedule.every(3).hours.do(send_message, "message")
+
     while True:
         await aioschedule.run_pending()
-        await asyncio.sleep(10)
+        await asyncio.sleep(1)
 
 
 @dp.message_handler()
