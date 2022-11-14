@@ -6,7 +6,7 @@ import aioschedule as aioschedule
 
 def sql_start():
     global base, cur
-    base = sqlite3.connect('database/skidka.db')
+    base = sqlite3.connect('/media/infected/Всё там есть1/skidkabot/database/skidka.db')
     cur = base.cursor()
     cur.execute(
         "CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id , user_name TEXT, connect_date, discount, FOREIGN KEY (id) REFERENCES packages (user_id) )"

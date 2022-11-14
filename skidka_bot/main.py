@@ -215,8 +215,7 @@ def update_old_price_in_db():
         url_for_update = (url[0])
         price_for_update = parser_wb_page.page_parce(url[0])[2]
         update_old_price(price_for_update, url_for_update)
-        print(url[0])
-        print(parser_wb_page.page_parce(url[0])[2])
+
 
 
 @dp.message_handler(commands=['howmuch'])
@@ -286,9 +285,11 @@ async def command_not_found(message: types.Message):
 
 
 async def on_startup(_):
+    print(f"Бот запущен {current_datetime.strftime('%d %B %Y в %H:%M')}")
     asyncio.create_task(scheduler())
 
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
     add_new_price_in_db()
+
