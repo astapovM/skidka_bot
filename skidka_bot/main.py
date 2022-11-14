@@ -13,8 +13,8 @@ import sqlite3
 from buttons.keyboard_button import inline_start_kb, delete_all_kb, call_cancel_button
 from config import TOKEN
 from database import db_admin
-from database.db_admin import check_user_in_db, add_new_user, add_item_info, add_discount, add_new_price, take_url, \
-    check_prices, delete_all_items, update_old_price
+from database.db_admin import check_user_in_db, add_new_user, add_item_info, add_new_price, take_url, \
+    check_prices, update_old_price
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
@@ -150,7 +150,7 @@ async def personal_sale(callback: CallbackQuery):
 
 # Хендлер для удаления всех записей
 @dp.callback_query_handler(text='delete_all_button')
-async def delete_all_items(callback: CallbackQuery):
+async def delete_all_products(callback: CallbackQuery):
     await callback.message.answer("Вы уверены, что хотите удалить все товары из вашего списка?",
                                   reply_markup=delete_all_kb)
 
@@ -171,7 +171,7 @@ async def cancel_delete(callback: CallbackQuery):
 
 
 @dp.message_handler(state=Url_input.insert_item_id)
-async def url_input_state(message: types.Message, state: FSMContext):
+async def url_input_in_state(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['id_to_delete'] = message.text
         db_admin.delete_item_from_db(message.text)
