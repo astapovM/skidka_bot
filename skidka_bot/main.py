@@ -18,7 +18,7 @@ from buttons.keyboard_button import inline_start_kb, delete_all_kb, call_cancel_
 from config import TOKEN
 from database import db_admin
 from database.db_admin import check_user_in_db, add_new_user, add_item_info, add_discount, add_new_price, take_url, \
-    check_prices, delete_all_items
+    check_prices, delete_all_items, update_old_price
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
@@ -89,7 +89,8 @@ async def url_input_state(message: types.Message, state: FSMContext):
 # Ловим ответ на нажатие инлайн кнопки "Посмотреть мои товары "
 @dp.callback_query_handler(text='package_button')
 async def send_start_package(callback: CallbackQuery):
-    if db_admin.check_packages(callback.message.chat.id) != None:
+    package_list = db_admin.check_packages(callback.message.chat.id)
+    if package_list:
         await bot.delete_message(chat_id=callback.from_user.id, message_id=callback.message.message_id)
         await callback.message.answer("•••••• ━───────────── • •• •• •• •• •• • ─────────────━ ••••••")
         package_list = db_admin.check_packages(callback.message.chat.id)
@@ -105,8 +106,7 @@ async def send_start_package(callback: CallbackQuery):
 
         await callback.message.answer("Ваш список товаров 😎", reply_markup=inline_start_kb)
 
-
-    else:
+    if not package_list:
         await callback.message.answer("Ваш список товаров пуст")
 
 
@@ -122,21 +122,24 @@ async def send_start_help(callback: CallbackQuery):
 
 
 @dp.callback_query_handler(text='delete_button')
-async def send_delete_button(callback: CallbackQuery, state: FSMContext):
-    await bot.delete_message(chat_id=callback.from_user.id, message_id=callback.message.message_id)
-    await callback.message.answer("•••••• ━───────────── • •• •• •• • ─────────────━ ••••••")
-    await callback.message.answer("Введите номер товара :", reply_markup=call_cancel_button)
-
-    try:
-        package_list = db_admin.check_packages(callback.message.chat.id)
+async def send_delete_button(callback: CallbackQuery):
+    package_list = db_admin.check_packages(callback.message.chat.id)
+    if not package_list:
+        await callback.message.answer("Список товаров пуст.", reply_markup=inline_start_kb)
+        return
+    if callback.message.text == '♻️Вернуться в меню ♻':
+        await callback.message.answer("Возврат в главное меню", reply_markup=inline_start_kb)
+        return
+    else:
+        await bot.delete_message(chat_id=callback.from_user.id, message_id=callback.message.message_id)
+        await callback.message.answer("•••••• ━───────────── • •• •• •• • ─────────────━ ••••••")
+        await callback.message.answer("Введите номер товара для удаления или 777 для возврата в главное меню:")
         for package in package_list:
             await callback.message.answer(
                 f'{package[0]}. {package[1]}\n ※※※ <b>{package[2]} ※※※ {package[3]}</b> ※※※ <b>   Цена: {package[4]}</b>',
                 parse_mode='html')
         await Url_input.insert_item_id.set()
-        await callback.answer()
-    except sqlite3.OperationalError:
-        await state.finish()
+        return
 
 
 @dp.callback_query_handler(text='personal_sale_button')
@@ -205,6 +208,15 @@ def add_new_price_in_db():
         add_new_price(price_for_update, url_for_update)
 
 
+def update_old_price_in_db():
+    for url in take_url():
+        url_for_update = (url[0])
+        price_for_update = parser_wb_page.page_parce(url[0])[2]
+        update_old_price(price_for_update, url_for_update)
+        print(url[0])
+        print(parser_wb_page.page_parce(url[0])[2])
+
+
 @dp.message_handler(commands=['howmuch'])
 async def how_much(message):
     add_new_price_in_db()
@@ -212,17 +224,18 @@ async def how_much(message):
         try:
             if i[2] < i[1]:
                 skidka = i[1] - i[2]
-                print(i[0], f'Цена на товар:\n{i[3]}   \n{i[4]} снижена на ※※{int(skidka)}руб※※')
-                print("*" * 30)
+                await bot.send_message(admin,
+                                       f'{i[0]}, Цена на товар:\n{i[3]}   \n{i[4]} снижена на ※※{int(skidka)}руб※※')
+                await bot.send_message(admin, "*" * 30)
                 await asyncio.sleep(1)
 
-            elif i[2] > i[1]:
+            if i[2] > i[1]:
                 skidka = i[1] - i[2]
-                print(i[0], f'Цена на товар:\n{i[3]}   \n{i[4]} увеличилась на ※※{abs(int(skidka))}руб※※'
-                      )
-                print("*" * 30)
+                await bot.send_message(admin,
+                                       f'{i[0]}, Цена на товар:\n{i[3]}   \n{i[4]} увеличилась на ※※{abs(int(skidka))}руб※※'
+                                       )
+                await bot.send_message("*" * 30)
                 await asyncio.sleep(1)
-
 
         except TypeError:
             continue
@@ -238,11 +251,13 @@ async def send_message(message):
                 await bot.send_message(i[0], f'Цена на товар:\n{i[3]}   \n{i[4]} снижена на ※※{int(skidka)}руб※※'
                                              f'\nЛичная скидка временно не учитывается')
                 print(f"Сообщение пользователю {i[0]} о скидке на товар {i[3]} на {skidka}руб. доставлено")
+                update_old_price_in_db()
             elif i[2] > i[1]:
                 skidka = i[1] - i[2]
                 await bot.send_message(i[0], f'Цена на товар:\n{i[3]}   \n{i[4]} увеличилась на ※※{int(skidka)}руб※※'
                                              f'\nЛичная скидка временно не учитывается')
                 print(f"Сообщение пользователю {i[0]} о повышении цены на товар {i[3]} на {abs(skidka)}руб. доставлено")
+                update_old_price_in_db()
 
         except TypeError:
             continue

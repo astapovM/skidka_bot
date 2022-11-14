@@ -67,6 +67,10 @@ def add_new_price(price_for_update, url_for_update):
     cur.execute(f"UPDATE packages SET new_price = ? WHERE package_url = ?", (price_for_update, url_for_update))
     base.commit()
 
+def update_old_price(price_for_update, url_for_update):
+    cur.execute(f"UPDATE packages SET old_price = ? WHERE package_url = ?", (price_for_update, url_for_update))
+    base.commit()
+
 def delete_all_items(user_id):
     cur.execute(f"DELETE FROM packages WHERE user_id ={user_id}")
     base.commit()
