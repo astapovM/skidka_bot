@@ -9,12 +9,12 @@ from aiogram.dispatcher import Dispatcher, FSMContext
 from aiogram.types import CallbackQuery
 from aiogram.utils import executor
 import sqlite3
-
 from buttons.keyboard_button import inline_start_kb, delete_all_kb, call_cancel_button
 from config import TOKEN
 from database import db_admin
 from database.db_admin import check_user_in_db, add_new_user, add_item_info, add_new_price, take_url, \
     check_prices, update_old_price
+import logging
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot, storage=MemoryStorage())
@@ -23,6 +23,13 @@ date = datetime.now().date()
 current_datetime = datetime.now()
 admin = 293427068
 
+logging.basicConfig(level=logging.DEBUG, filename=f"{date}.log", filemode="a",
+                    format="%(asctime)s %(levelname)s %(message)s")
+logging.debug("[A DEBUG Message]")
+logging.info("[INFO]")
+logging.warning("[ WARNING !!! ]")
+logging.error("[ ERROR ]")
+logging.critical("[!!! A message of CRITICAL severity !!!]")
 
 # Регистрируем пользователя при старте бота.
 @dp.message_handler(commands=['start'])
