@@ -1,4 +1,5 @@
 import asyncio
+import os
 from datetime import datetime
 import aioschedule
 from states.set_states import Url_input
@@ -22,14 +23,15 @@ db_admin.sql_start()
 date = datetime.now().date()
 current_datetime = datetime.now()
 admin = 293427068
-
-logging.basicConfig(level=logging.DEBUG, filename=f"{date}.log", filemode="a",
+path = "/home/infected/Python Projects/skidka_bot/logs"
+logging.basicConfig(level=logging.DEBUG, filename=os.path.join(path, f"{date}.log"), filemode="a",
                     format="%(asctime)s %(levelname)s %(message)s")
 logging.debug("[A DEBUG Message]")
 logging.info("[INFO]")
 logging.warning("[ WARNING !!! ]")
 logging.error("[ ERROR ]")
 logging.critical("[!!! A message of CRITICAL severity !!!]")
+
 
 # Регистрируем пользователя при старте бота.
 @dp.message_handler(commands=['start'])
