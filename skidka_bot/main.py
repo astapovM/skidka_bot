@@ -9,40 +9,35 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import Dispatcher, FSMContext
 from aiogram.types import CallbackQuery
 from aiogram.utils import executor
-import sqlite3
 from buttons.keyboard_button import inline_start_kb, delete_all_kb, call_cancel_button
-from config import TOKEN
-from database import db_admin
-from database.db_admin import check_user_in_db, add_new_user, add_item_info, add_new_price, take_url, \
-    check_prices, update_old_price
-import logging
+from database.db_admin import ydb_client
+from config import configuration
 
-bot = Bot(token=TOKEN)
+import logging
+import json
+import time
+
+
+bot = Bot(token=configuration.token)
 dp = Dispatcher(bot, storage=MemoryStorage())
-db_admin.sql_start()
-date = datetime.now().date()
+date_ms = round(time.time()*1000) 
 current_datetime = datetime.now()
 admin = 293427068
-path = "/home/infected/Python Projects/skidka_bot/logs"
-logging.basicConfig(level=logging.DEBUG, filename=os.path.join(path, f"{date}.log"), filemode="a",
-                    format="%(asctime)s %(levelname)s %(message)s")
 logging.debug("[A DEBUG Message]")
 logging.info("[INFO]")
 logging.warning("[ WARNING !!! ]")
 logging.error("[ ERROR ]")
 logging.critical("[!!! A message of CRITICAL severity !!!]")
 
-
 # Регистрируем пользователя при старте бота.
 @dp.message_handler(commands=['start'])
 async def start_command(message: types.Message):
-    if check_user_in_db(message.from_user.id) == None:
+    if ydb_client.check_user_in_db(message.from_user.id) == False:
         await message.answer(f"Привет, {message.from_user.first_name}. Я - бот для отслеживания скидок."
                              f"Оставляй ссылку на товар - а я сообщу тебе,когда на него появится скидка или же наоборот, товар подорожает",
                              reply_markup=inline_start_kb,
-                             )
-        params = (message.from_user.id, message.from_user.first_name, date)
-        add_new_user(params)
+                             )        
+        ydb_client.add_new_user(message.from_user.id, message.from_user.first_name, date_ms)
     else:
         await message.answer(f"Привет, {message.from_user.full_name}. Начинаем экономить  🥳 🥳 ",
                              reply_markup=inline_start_kb)
@@ -80,12 +75,13 @@ async def url_input_state(message: types.Message, state: FSMContext):
             await Url_input.insert_url.set()
         else:
             item_info = parser_wb_page.page_parce(message.text)
-            params = (message.chat.id, data['url'], item_info[0], item_info[1], item_info[2])
+            
             try:
-                add_item_info(params)
+                ydb_client.add_item_info(message.chat.id, data['url'], item_info[0], item_info[1], item_info[2])
                 await state.finish()
                 await message.answer("Товар добавлен", reply_markup=inline_start_kb)
-            except sqlite3.IntegrityError:
+            except Exception as e:     
+                print(e)          
                 await message.answer("Такой товар уже есть в вашем списке", reply_markup=inline_start_kb)
                 await state.finish()
             except UnboundLocalError:
@@ -95,21 +91,19 @@ async def url_input_state(message: types.Message, state: FSMContext):
 # Ловим ответ на нажатие инлайн кнопки "Посмотреть мои товары "
 @dp.callback_query_handler(text='package_button')
 async def send_start_package(callback: CallbackQuery):
-    package_list = db_admin.check_packages(callback.message.chat.id)
+    package_list = ydb_client.check_packages(callback.message.chat.id)
+    
     if package_list:
         await bot.delete_message(chat_id=callback.from_user.id, message_id=callback.message.message_id)
         await callback.message.answer("•••••• ━───────────── • •• •• •• •• •• • ─────────────━ ••••••")
-        package_list = db_admin.check_packages(callback.message.chat.id)
+        package_list = ydb_client.check_packages(callback.message.chat.id)
+        i = 0
         for package in package_list:
-            if package[4] == None:
+                i+=1            
                 await callback.message.answer(
-                    f'{package[0]}. {package[1]}\n ※※※ <b>{package[2]} ※※※ {package[3]}</b> ※※※ <b>   Цена: {package[5]}</b>',
+                    f"{i}. {package['package_url']}\n ※※※ <b>{package['package_name']} ※※※ {package['brand_name']}</b> ※※※ <b>   Цена: {package['new_price'] or package['old_price']}</b>",
                     parse_mode='html')
-            else:
-                await callback.message.answer(
-                    f'{package[0]}. {package[1]}\n ※※※ <b>{package[2]} ※※※ {package[3]}</b> ※※※ <b>   Цена: {package[4]}</b>',
-                    parse_mode='html')
-
+           
         await callback.message.answer("Ваш список товаров 😎", reply_markup=inline_start_kb)
 
     if not package_list:
@@ -129,7 +123,7 @@ async def send_start_help(callback: CallbackQuery):
 
 @dp.callback_query_handler(text='delete_button')
 async def send_delete_button(callback: CallbackQuery):
-    package_list = db_admin.check_packages(callback.message.chat.id)
+    package_list = ydb_client.check_packages(callback.message.chat.id)
     if not package_list:
         await callback.message.answer("Список товаров пуст.", reply_markup=inline_start_kb)
         return
@@ -140,9 +134,11 @@ async def send_delete_button(callback: CallbackQuery):
         await bot.delete_message(chat_id=callback.from_user.id, message_id=callback.message.message_id)
         await callback.message.answer("•••••• ━───────────── • •• •• •• • ─────────────━ ••••••")
         await callback.message.answer("Введите номер товара для удаления или 777 для возврата в главное меню:")
+        i = 0
         for package in package_list:
+            i+=1
             await callback.message.answer(
-                f'{package[0]}. {package[1]}\n ※※※ <b>{package[2]} ※※※ {package[3]}</b> ※※※ <b>   Цена: {package[4]}</b>',
+                f"{i}. {package['package_url']}\n ※※※ <b>{package['package_name']} ※※※ {package['brand_name']}</b> ※※※ <b>   Цена: {package['new_price'] or package['old_price']}</b>",
                 parse_mode='html')
         await Url_input.insert_item_id.set()
         return
@@ -168,7 +164,7 @@ async def delete_all_products(callback: CallbackQuery):
 @dp.callback_query_handler(text='confirm_button')
 async def confirm_delete(callback: CallbackQuery):
     await bot.delete_message(chat_id=callback.from_user.id, message_id=callback.message.message_id)
-    db_admin.delete_all_items(callback.message.chat.id)
+    ydb_client.delete_all_items(callback.message.chat.id)
     await callback.message.answer("Все ваши товары были удалены. Добавьте новые для отслеживания цены 🙃")
 
 
@@ -183,7 +179,7 @@ async def cancel_delete(callback: CallbackQuery):
 async def url_input_in_state(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['id_to_delete'] = message.text
-        db_admin.delete_item_from_db(message.text)
+        ydb_client.delete_item_from_db(message.text)
         await state.finish()
         await message.answer("Товар удалён из списка отслеживаемых", reply_markup=inline_start_kb)
 
@@ -191,7 +187,7 @@ async def url_input_in_state(message: types.Message, state: FSMContext):
 @dp.message_handler(state=Url_input.insert_discount)
 async def discount_input_state(message: types.Message, state: FSMContext):
     discount = message.text
-    db_admin.add_discount(message.from_user.id, discount)
+    ydb_client.add_discount(message.from_user.id, discount)
     await state.finish()
     await message.answer(f"Персональная скидка составляет {discount}%", reply_markup=inline_start_kb)
 
@@ -207,23 +203,23 @@ async def spam(message):
 
 # Парсинг цены и занесение в БД (new_price)
 def add_new_price_in_db():
-    for url in take_url():
+    for url in ydb_client.take_url():        
         url_for_update = (url[0])
-        price_for_update = parser_wb_page.page_parce(url[0])[2]
-        add_new_price(price_for_update, url_for_update)
+        price_for_update = parser_wb_page.page_parce(url['package_url'])[2]
+        ydb_client.add_new_price(price_for_update, url_for_update)
 
 
 def update_old_price_in_db():
-    for url in take_url():
+    for url in ydb_client.take_url():
         url_for_update = (url[0])
-        price_for_update = parser_wb_page.page_parce(url[0])[2]
-        update_old_price(price_for_update, url_for_update)
+        price_for_update = parser_wb_page.page_parce(url['package_url'])[2]
+        ydb_client.update_old_price(price_for_update, url_for_update)
 
 
 @dp.message_handler(commands=['howmuch'])
 async def how_much(message):
     add_new_price_in_db()
-    for i in check_prices():
+    for i in ydb_client.check_prices():
         try:
             if i[2] < i[1]:
                 skidka = i[1] - i[2]
@@ -249,7 +245,7 @@ async def how_much(message):
 @dp.message_handler(commands=['spam'])
 async def send_message(message):
     add_new_price_in_db()
-    for i in check_prices():
+    for i in ydb_client.check_prices():
         try:
             if i[2] < i[1]:
                 skidka = i[1] - i[2]
@@ -294,3 +290,18 @@ async def on_startup(_):
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
     add_new_price_in_db()
+
+async def update_handler(event, _):
+    update = json.loads(event['body'])
+
+    try:        
+        Dispatcher.set_current(dp)
+        Bot.set_current(bot)
+        await dp.process_update(types.Update.to_object(update))
+    except Exception as e:
+        raise e
+
+    return {
+        'statusCode': 200,
+        'body': 'OK'
+        }
